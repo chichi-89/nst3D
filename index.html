@@ -11,6 +11,9 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     
     <script>
+        // DÁN URL CỦA APPS SCRIPT VÀO ĐÂY:
+        const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxw8TA-QD7Unf8ebFZOsc59BjLZ-eQi3JC4Som-kYuZvX79I8yPXI-V-YqHPy9QfoV0/exec";
+
         tailwind.config = {
             theme: {
                 extend: {
@@ -86,6 +89,52 @@
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        button { -webkit-tap-highlight-color: transparent; }
+        #info-drawer, #comparison-modal { overflow-y: auto; overscroll-behavior: contain; }
+        #info-description, #info-extra { overflow-wrap: anywhere; }
+        #webgl-container { min-width: 0; min-height: 0; }
+        @media (max-width: 767px) {
+            body { height: 100dvh; min-height: 100dvh; }
+            #mobile-control-drawer {
+                max-height: 72dvh;
+                overflow-y: auto;
+                overscroll-behavior: contain;
+                padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            }
+            #info-drawer {
+                left: 8px !important;
+                right: 8px !important;
+                bottom: calc(48px + env(safe-area-inset-bottom)) !important;
+                max-height: 38dvh;
+                padding: 12px;
+                border-radius: 16px;
+            }
+            #comparison-modal {
+                left: 8px !important;
+                right: 8px !important;
+                bottom: calc(48px + env(safe-area-inset-bottom)) !important;
+                max-height: 34dvh;
+                overflow-x: auto;
+            }
+            #comparison-modal table { min-width: 260px; }
+            #callouts-container .callout-card {
+                max-width: 76px;
+                padding: 3px 5px;
+                font-size: 8px;
+                line-height: 1.15;
+                white-space: normal;
+                overflow-wrap: anywhere;
+            }
+            #callouts-container .callout-card span { font-size: 8px !important; }
+            #info-banner { max-width: calc(100vw - 112px); }
+            #quiz-modal { padding: 8px; }
+            #quiz-modal > div { max-height: 88dvh; overflow-y: auto; }
+        }
+        @media (max-width: 380px) {
+            #callouts-container .callout-card { max-width: 62px; }
+            header h1 { font-size: 10px; }
+            #btn-open-quiz { padding-left: 7px; padding-right: 7px; }
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col overflow-hidden relative select-none">
@@ -164,8 +213,8 @@
                     <button id="pair-xx" class="glass-btn py-1 rounded-lg text-xs font-bold">XX (Nữ)</button>
                 </div>
                 <div class="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-800">
-                    <button id="btn-state-single" class="glass-btn py-1 rounded-lg text-[10px] font-bold">NST Đơn</button>
-                    <button id="btn-state-double" class="glass-btn active py-1 rounded-lg text-[10px] font-bold">NST Kép 3D</button>
+                    <button id="btn-state-single" class="glass-btn py-1 rounded-lg text-[10px] font-bold">Chưa nhân đôi</button>
+                    <button id="btn-state-double" class="glass-btn active py-1 rounded-lg text-[10px] font-bold">Đã nhân đôi</button>
                 </div>
             </div>
 
@@ -176,7 +225,6 @@
                     <button id="mode-explore" class="glass-btn py-1 px-2 rounded-lg text-[10px] font-medium active">Tự do 360°</button>
                     <button id="mode-compare" class="glass-btn py-1 px-2 rounded-lg text-[10px] font-medium">So sánh X - Y</button>
                 </div>
-                <!-- Bổ sung nút bấm lọc trực tiếp vùng đặc trưng X và Y -->
                 <div class="pt-1 border-t border-slate-800 grid grid-cols-2 gap-1">
                     <button id="btn-show-spec-x" class="glass-btn py-1 px-1.5 rounded-lg text-[9px] font-medium text-cyan-300 truncate">
                         <i class="fa-solid fa-dna mr-1"></i>Vùng đ.trưng X
@@ -203,22 +251,29 @@
                 </h3>
                 <button id="close-comp-modal" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <table class="w-full text-[10px] text-left text-slate-300">
-                <tbody class="divide-y divide-slate-800/60">
+            <table class="w-full table-fixed text-[10px] text-left text-slate-200 border-separate border-spacing-0">
+                <thead>
+                    <tr class="bg-slate-900/95">
+                        <th scope="col" class="w-[34%] py-2 px-1 text-left font-bold text-slate-200 border-b border-slate-600">Đặc điểm</th>
+                        <th scope="col" class="w-[33%] py-2 px-1 text-center font-black text-cyan-200 border-b border-cyan-500/60">NST X</th>
+                        <th scope="col" class="w-[33%] py-2 px-1 text-center font-black text-amber-200 border-b border-amber-500/60">NST Y</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/80">
                     <tr>
-                        <td class="py-1 font-medium">Kích thước</td>
-                        <td class="py-1 text-center font-bold text-cyan-300">Lớn (~150Mb)</td>
-                        <td class="py-1 text-center font-bold text-amber-300">Nhỏ (~50Mb)</td>
+                        <td class="py-1.5 px-1 font-medium">Vùng đặc trưng</td>
+                        <td class="py-1.5 px-1 text-center text-cyan-100">Có</td>
+                        <td class="py-1.5 px-1 text-center text-amber-100">Có</td>
                     </tr>
                     <tr>
                         <td class="py-1 font-medium">Đoạn PAR1 & PAR2</td>
-                        <td class="py-1 text-center text-emerald-400">Có</td>
-                        <td class="py-1 text-center text-emerald-400">Có</td>
+                        <td class="py-1.5 px-1 text-center font-semibold text-emerald-300">Có</td>
+                        <td class="py-1.5 px-1 text-center font-semibold text-emerald-300">Có</td>
                     </tr>
                     <tr class="bg-amber-500/10">
-                        <td class="py-1 font-bold text-amber-300">Gene SRY</td>
-                        <td class="py-1 text-center text-slate-500">Không</td>
-                        <td class="py-1 text-center font-bold text-amber-400">Có (Nam)</td>
+                        <td class="py-1.5 px-1 font-bold text-amber-200">Gene SRY</td>
+                        <td class="py-1.5 px-1 text-center font-bold text-slate-100 bg-slate-800/80">Không có SRY</td>
+                        <td class="py-1.5 px-1 text-center font-black text-amber-200 bg-amber-500/15">Có SRY</td>
                     </tr>
                 </tbody>
             </table>
@@ -237,6 +292,7 @@
             <p id="info-description" class="text-[11px] md:text-xs text-slate-200 leading-relaxed font-normal">
                 Nội dung mô tả...
             </p>
+            <p class="mt-2 text-[9px] text-slate-400 italic">Lưu ý: Đây là mô hình minh họa, không theo tỉ lệ kích thước thực của NST hoặc vị trí gene.</p>
             <div id="info-extra" class="mt-2.5 text-[10px] md:text-[11px] text-cyan-200 bg-slate-900/80 p-2 rounded-xl border border-cyan-500/30 font-medium">
             </div>
         </div>
@@ -275,7 +331,7 @@
                         <h3 class="text-sm font-bold text-white">Thông Tin Học Sinh</h3>
                         <p class="text-[11px] text-slate-300">Vui lòng điền Họ tên và Lớp để bắt đầu tham gia thử thách nhé!</p>
                     </div>
-                    <form id="form-student-info" onsubmit="event.preventDefault(); startQuizWithStudentInfo();" class="space-y-3">
+                    <form id="form-student-info" class="space-y-3">
                         <div>
                             <label class="block text-[11px] font-semibold text-cyan-300 mb-1">
                                 <i class="fa-solid fa-user text-xs mr-1"></i> Họ và Tên:
@@ -332,6 +388,12 @@
                     <p id="summary-comment" class="text-[11px] text-cyan-300 bg-slate-900/80 p-2.5 rounded-xl border border-cyan-500/30 inline-block">
                         Xuất sắc!
                     </p>
+                    
+                    <!-- Dòng trạng thái đang gửi điểm sang Google Sheet -->
+                    <div id="sending-status" class="text-[11px] font-bold text-cyan-400 animate-pulse flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-spinner animate-spin"></i> Đang tự động lưu kết quả vào Google Sheet...
+                    </div>
+
                     <div class="pt-2 flex justify-center gap-2">
                         <button id="btn-restart-quiz" class="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs">
                             <i class="fa-solid fa-rotate-right mr-1"></i> Thử lại
@@ -449,13 +511,27 @@
         }
 
         function startQuizWithStudentInfo() {
-            const inputName = document.getElementById('student-name').value.trim();
-            const inputClass = document.getElementById('student-class').value.trim();
-            
-            if (inputName) studentName = inputName;
-            if (inputClass) studentClass = inputClass;
-            currentQuizIndex = 0; 
-            currentQuizScore = 0; 
+            const nameInput = document.getElementById('student-name');
+            const classInput = document.getElementById('student-class');
+            const inputName = nameInput ? nameInput.value.trim() : '';
+            const inputClass = classInput ? classInput.value.trim() : '';
+
+            // Chỉ bắt đầu khi cả họ tên và lớp đều được nhập.
+            if (!inputName || !inputClass) {
+                if (nameInput && !inputName) nameInput.focus();
+                else if (classInput && !inputClass) classInput.focus();
+                showBanner('Vui lòng nhập đầy đủ họ tên và lớp trước khi bắt đầu!');
+                return;
+            }
+            if (!Array.isArray(QUIZ_DATA) || QUIZ_DATA.length === 0) {
+                showBanner('Chưa tải được bộ câu hỏi. Vui lòng tải lại trang và thử lại.');
+                return;
+            }
+
+            studentName = inputName;
+            studentClass = inputClass;
+            currentQuizIndex = 0;
+            currentQuizScore = 0;
             quizAnswered = false;
             document.getElementById('quiz-score').innerText = '0';
             document.getElementById('quiz-user-info').classList.add('hidden');
@@ -639,6 +715,41 @@
             feedbackEl.classList.remove('hidden');
         }
 
+        // HÀM TỰ ĐỘNG GỬI KẾT QUẢ SANG GOOGLE SHEET
+        function sendResultToGoogleSheet() {
+            const statusEl = document.getElementById('sending-status');
+            if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.includes("DÁN_LINK_WEB_APP")) {
+                if (statusEl) statusEl.innerHTML = `<span class="text-amber-400"><i class="fa-solid fa-triangle-exclamation"></i> Chưa cấu hình URL Google Sheet!</span>`;
+                return;
+            }
+
+            if (statusEl) statusEl.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Đang tự động lưu kết quả vào Google Sheet...`;
+
+            const now = new Date();
+            const timestamp = now.toLocaleString('vi-VN');
+
+            const payload = {
+                timestamp: timestamp,
+                name: studentName,
+                className: studentClass,
+                score: currentQuizScore
+            };
+
+            fetch(GOOGLE_SHEET_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                if (statusEl) statusEl.innerHTML = `<span class="text-emerald-400"><i class="fa-solid fa-circle-check"></i> Đã lưu kết quả thành công!</span>`;
+            })
+            .catch(err => {
+                console.error("Lỗi gửi dữ liệu:", err);
+                if (statusEl) statusEl.innerHTML = `<span class="text-rose-400"><i class="fa-solid fa-circle-xmark"></i> Lỗi khi gửi dữ liệu!</span>`;
+            });
+        }
+
         function showQuizSummary() {
             document.getElementById('quiz-content').classList.add('hidden');
             document.getElementById('quiz-header-progress').classList.add('hidden');
@@ -655,6 +766,9 @@
             } else {
                 commentEl.innerText = 'Cố gắng lên! Quan sát mô hình 3D nhiều hơn để ghi nhớ bài nhé!';
             }
+
+            // Gửi điểm số lên Google Sheet ngay khi hoàn thành
+            sendResultToGoogleSheet();
         }
 
         const COLORS = { X_BODY: 0x2563eb, Y_BODY: 0x0284c7, PAR: 0xff2a5f, SRY: 0xffd700, HIGHLIGHT: 0x00f2fe };
@@ -695,49 +809,48 @@
             return mesh;
         }
 
-        // Định nghĩa các vùng đặc trưng đầy đủ theo nội dung bài học & ảnh người dùng cung cấp
         const REGIONS = {
             CENTROMERE: { 
                 id: 'CENTROMERE', 
                 name: 'Tâm động (Centromere)', 
                 badge: 'Thắt sơ cấp', 
-                desc: 'Nơi liên kết 2 chromatid chị em và là vị trí gắn với thoi phân bào khi tế bào tiến hành chia đôi.', 
-                extra: 'Đảm bảo sự phân chia chính xác vật chất di truyền về các tế bào con.' 
+                desc: 'Vùng thắt sơ cấp của NST. Khi NST đã nhân đôi, hai chromatid chị em gắn kết tại vùng tâm động; kinetochore hình thành tại đây để tương tác với thoi phân bào.', 
+                extra: 'Mô hình minh họa cấu trúc; hình dạng và tỉ lệ không phản ánh chính xác kích thước thực.' 
             },
             PAR1_X: { 
                 id: 'PAR1_X', 
                 name: 'PAR1 – Vùng tương đồng', 
                 badge: 'Mút ngắn (p)', 
-                desc: 'Chứa các gene tương đồng hoàn toàn giữa X và Y, giúp hai NST bắt đôi chính xác khi giảm phân.', 
-                extra: 'Ví dụ gene SHOX quy định phát triển chiều cao cơ thể.' 
+                desc: 'PAR1 là vùng tương đồng ở đầu mút nhánh ngắn của NST X. Vùng tương ứng trên X và Y có các trình tự DNA và gene tương ứng, hỗ trợ sự tiếp hợp của X và Y trong giảm phân.', 
+                extra: '“Tương đồng” không có nghĩa là mọi trình tự DNA đều giống hệt nhau. Mô hình chỉ minh họa vị trí tương đối.' 
             },
             PAR1_Y: { 
                 id: 'PAR1_Y', 
                 name: 'PAR1 – Vùng tương đồng Y', 
                 badge: 'Mút ngắn (p)', 
-                desc: 'Tương đồng cấu trúc và chức năng với vùng PAR1 trên NST X.', 
-                extra: 'Di truyền theo quy luật di truyền NST thường.' 
+                desc: 'PAR1 trên NST Y là vùng tương đồng với PAR1 trên NST X, nằm ở đầu mút nhánh ngắn.', 
+                extra: 'Gene thuộc vùng PAR có kiểu di truyền khác với các gene chỉ nằm ở vùng đặc trưng của X hoặc Y.' 
             },
             PAR2_X: { 
                 id: 'PAR2_X', 
                 name: 'PAR2 – Vùng tương đồng', 
                 badge: 'Mút dài (q)', 
-                desc: 'Vùng tương đồng thứ hai nằm ở tận cùng nhánh dài của NST X và Y.', 
-                extra: 'Hỗ trợ ổn định cấu trúc tiếp hợp trong kỳ đầu giảm phân I.' 
+                desc: 'PAR2 là vùng tương đồng thứ hai, nằm ở đầu mút nhánh dài của NST X.', 
+                extra: 'Vùng PAR góp phần giúp NST X và Y tiếp hợp trong giảm phân; sơ đồ không thể hiện tỉ lệ kích thước thực.' 
             },
             PAR2_Y: { 
                 id: 'PAR2_Y', 
                 name: 'PAR2 – Vùng tương đồng Y', 
                 badge: 'Mút dài (q)', 
-                desc: 'Tương đồng với PAR2 trên NST X.', 
-                extra: 'Nằm ở mút tận cùng nhánh dài (q).' 
+                desc: 'PAR2 trên NST Y là vùng tương đồng với PAR2 trên NST X, nằm ở đầu mút nhánh dài.', 
+                extra: '“Tương đồng” không đồng nghĩa với việc toàn bộ trình tự DNA phải giống hệt nhau.' 
             },
             SRY: { 
                 id: 'SRY', 
                 name: 'Gene SRY', 
-                badge: 'Quy định giới tính Nam', 
-                desc: 'Gene SRY thuộc vùng đặc trưng Y (ngoài PAR), mã hóa yếu tố TDF kích hoạt sự biệt hóa tinh hoàn và phát triển giới tính Nam.', 
-                extra: 'Không bị trao đổi chéo sang NST X ở quá trình giảm phân bình thường.' 
+                badge: 'Khởi phát phát triển tinh hoàn', 
+                desc: 'Ở người, gene SRY nằm trên vùng không tương đồng của NST Y và mã hóa yếu tố phiên mã tham gia khởi phát con đường phát triển tinh hoàn trong quá trình phát triển phôi.', 
+                extra: 'SRY có vai trò quan trọng trong con đường phát triển này, nhưng không nên diễn đạt rằng chỉ riêng sự hiện diện của NST Y giải thích mọi khía cạnh của phát triển giới tính.' 
             },
             SPECIFIC_X: { 
                 id: 'SPECIFIC_X', 
@@ -852,7 +965,16 @@
                 sub: 'PAR1', 
                 group: () => chromosomeYGroup, 
                 getPos: () => currentPairType === 'XX' ? new THREE.Vector3(0.9, 3.6, 0) : new THREE.Vector3(0.5, 1.5, 0), 
-                regionKey: 'PAR1_X' 
+                regionKey: 'PAR1_Y' 
+            },
+            { id: 'SPECIFIC_X', text: 'Vùng đ.trưng X', sub: 'Không tương đồng', group: () => chromosomeXGroup, pos: new THREE.Vector3(-0.8, -1.8, 0), regionKey: 'SPECIFIC_X' },
+            { 
+                id: 'SPECIFIC_Y', 
+                text: 'Vùng đ.trưng Y', 
+                sub: 'Không tương đồng', 
+                group: () => chromosomeYGroup, 
+                getPos: () => currentPairType === 'XX' ? new THREE.Vector3(0.8, -1.8, 0) : new THREE.Vector3(0.4, -0.6, 0), 
+                regionKey: 'SPECIFIC_Y' 
             },
             { id: 'SRY', text: 'SRY', sub: 'Gene Nam', group: () => chromosomeYGroup, getPos: () => new THREE.Vector3(0.35, 0.8, 0), regionKey: 'SRY', highlight: true },
             { id: 'CENTRO_X', text: 'Tâm động', sub: 'Thắt sơ cấp', group: () => chromosomeXGroup, pos: new THREE.Vector3(-0.5, 0.3, 0), regionKey: 'CENTROMERE' },
@@ -863,7 +985,7 @@
                 sub: 'PAR2', 
                 group: () => chromosomeYGroup, 
                 getPos: () => currentPairType === 'XX' ? new THREE.Vector3(1.0, -3.6, 0) : new THREE.Vector3(0.45, -1.5, 0), 
-                regionKey: 'PAR2_X' 
+                regionKey: 'PAR2_Y' 
             },
         ];
 
@@ -906,7 +1028,7 @@
             const isMobile = window.innerWidth < 768;
             const lineLen = isMobile ? 35 : 80;
             calloutElements.forEach(item => {
-                if (item.data.id === 'SRY' && currentPairType === 'XX') {
+                if ((item.data.id === 'SRY' || item.data.id === 'SPECIFIC_Y') && currentPairType === 'XX') {
                     item.element.style.opacity = '0'; return;
                 }
                 const worldPos = item.data.getPos ? item.data.getPos().clone() : item.data.pos.clone();
@@ -934,14 +1056,12 @@
             document.getElementById('info-badge').innerText = regionData.badge;
             document.getElementById('info-description').innerText = regionData.desc;
             
-            // Cập nhật nội dung ghi chú / đặc điểm tương ứng với định dạng hiển thị đẹp mắt như ảnh mẫu
             const extraContainer = document.getElementById('info-extra');
             extraContainer.innerHTML = `<div class="flex items-start gap-1.5"><i class="fa-solid fa-circle-dot text-cyan-400 text-[10px] mt-0.5 shrink-0"></i><span>${regionData.extra}</span></div>`;
             
             document.getElementById('info-drawer').classList.remove('hidden');
             resetHighlights();
             
-            // Xử lý Highlight vùng được chọn trên mô hình 3D
             if (regionData.id.includes('PAR1')) {
                 highlightGroupRegion(chromosomeXGroup, 'PAR1_X', COLORS.HIGHLIGHT);
                 highlightGroupRegion(chromosomeYGroup, currentPairType === 'XX' ? 'PAR1_X' : 'PAR1_Y', COLORS.HIGHLIGHT);
@@ -1063,11 +1183,23 @@
         }
 
         window.addEventListener('load', () => {
-            init3D();
-            animate();
-            
+            // Không để lỗi khởi tạo WebGL/Three.js chặn các sự kiện của phần thử thách.
             document.getElementById('btn-open-quiz').onclick = openQuizModal;
             document.getElementById('btn-bar-quiz').onclick = openQuizModal;
+            const studentInfoForm = document.getElementById('form-student-info');
+            if (studentInfoForm) {
+                studentInfoForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    startQuizWithStudentInfo();
+                });
+                const startButton = studentInfoForm.querySelector('button[type="submit"]');
+                if (startButton) {
+                    startButton.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        startQuizWithStudentInfo();
+                    });
+                }
+            }
             document.getElementById('close-quiz').onclick = () => document.getElementById('quiz-modal').classList.add('hidden');
             document.getElementById('btn-close-summary').onclick = () => document.getElementById('quiz-modal').classList.add('hidden');
             
@@ -1114,12 +1246,12 @@
             document.getElementById('btn-state-single').onclick = function() {
                 this.classList.add('active'); document.getElementById('btn-state-double').classList.remove('active');
                 isDuplicatedState = false; rebuildChromosomes();
-                showBanner('Dạng NST đơn');
+                showBanner('NST chưa nhân đôi: mỗi NST gồm một chromatid');
             };
             document.getElementById('btn-state-double').onclick = function() {
                 this.classList.add('active'); document.getElementById('btn-state-single').classList.remove('active');
                 isDuplicatedState = true; rebuildChromosomes();
-                showBanner('Dạng NST kép');
+                showBanner('NST đã nhân đôi: mỗi NST gồm hai chromatid chị em');
             };
 
             document.getElementById('mode-explore').onclick = function() {
@@ -1136,7 +1268,6 @@
                 showBanner('Chế độ so sánh đặc điểm X - Y');
             };
 
-            // Sự kiện bấm xem Vùng đặc trưng X và Y
             document.getElementById('btn-show-spec-x').onclick = () => {
                 triggerRegionSelect(REGIONS.SPECIFIC_X);
             };
@@ -1167,6 +1298,17 @@
             document.getElementById('close-comp-modal').onclick = () => {
                 document.getElementById('comparison-modal').classList.add('hidden');
             };
+            // Mô hình 3D khởi tạo sau khi đã gắn đầy đủ sự kiện cho bài thử thách.
+            try {
+                if (typeof THREE !== 'undefined') {
+                    init3D();
+                    animate();
+                } else {
+                    console.warn('Three.js chưa tải được; bài thử thách vẫn có thể hoạt động.');
+                }
+            } catch (error) {
+                console.error('Lỗi khởi tạo mô hình 3D:', error);
+            }
         });
     </script>
 </body>
